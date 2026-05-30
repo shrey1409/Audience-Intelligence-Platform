@@ -8,7 +8,7 @@ Ingests behavioral, subscription, email, social, and commerce data from 8 source
 | Phase | Name                   | Status    | Branch                            |
 |-------|------------------------|-----------|-----------------------------------|
 | 1     | environment-setup      | COMPLETE  | feature/phase1-environment-setup  |
-| 2     | database-schema        | COMPLETE  | feature/phase2-database-schema  |
+| 2     | database-schema        | IN PROGRESS | feature/phase2-database-schema  |
 | 3     | etl-ingestion          | PENDING   | feature/phase3-etl-ingestion      |
 | 4     | feature-engineering    | PENDING   | feature/phase4-feature-engineering |
 | 5     | ml-training            | PENDING   | feature/phase5-ml-training        |
