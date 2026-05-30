@@ -1,0 +1,202 @@
+project:
+  name: "audience_intelligence_platform"
+  version: "0.1.0"
+  environment: "development"
+
+database:
+  schema: "public"
+  pool_size: 10
+  max_overflow: 20
+  pool_timeout: 30
+  echo: false
+
+redis:
+  ttl_seconds: 604800
+  max_connections: 50
+
+ml:
+  features:
+    matrix:
+      - total_sessions
+      - total_pageviews
+      - active_days
+      - avg_session_duration
+      - avg_pages_per_session
+      - bounce_rate
+      - mobile_ratio
+      - desktop_ratio
+      - pageviews_per_session
+      - days_since_last_visit
+      - account_age_days
+      - ratio_sports
+      - ratio_entertainment
+      - ratio_celebrity
+      - ratio_shopping
+      - ratio_opinion
+      - ratio_world_news
+      - ratio_business
+      - ratio_lifestyle
+      - has_subscription
+      - subscription_amount
+      - total_billing_cycles
+      - days_until_renewal
+      - newsletter_count
+      - open_rate
+      - click_through_rate
+      - email_engagement_score
+      - nl_sports_alerts
+      - nl_morning_report
+      - nl_page_six_daily
+      - nl_celebrity_news
+      - nl_evening_update
+      - nl_post_opinion
+      - total_comments
+      - total_likes_given
+      - total_shares
+      - social_engagement_score
+      - total_affiliate_clicks
+      - total_transactions
+      - total_revenue_generated
+      - conversion_rate
+      - avg_transaction_value
+      - unique_advertisers_clicked
+      - age_score
+      - income_score
+      - has_children
+    log1p_features:
+      - total_sessions
+      - total_pageviews
+      - total_affiliate_clicks
+      - total_comments
+  clustering:
+    random_state: 42
+    k_min: 5
+    k_max: 15
+    n_init: 3
+    silhouette_sample_size: 50000
+    silhouette_threshold: 0.30
+    silhouette_alert_delta: 0.05
+    stability_threshold: 0.80
+    min_cluster_size_pct: 0.005
+    selection_weights:
+      silhouette: 0.40
+      interpretability: 0.40
+      stability: 0.20
+  propensity:
+    subscription:
+      weights:
+        newsletter_count_scaled: 0.30
+        open_rate_scaled: 0.25
+        days_since_last_visit_scaled_inverted: 0.25
+        dist_to_subscription_focused_inverted: 0.20
+    churn:
+      weights:
+        days_since_last_visit_scaled: 0.40
+        bounce_rate_scaled: 0.30
+        total_billing_cycles_scaled_inverted: 0.30
+    commerce:
+      weights:
+        ratio_shopping_scaled: 0.35
+        total_affiliate_clicks_scaled: 0.30
+        dist_to_high_value_shopper_inverted: 0.35
+
+cold_start:
+  min_sessions_for_ml: 5
+  rules:
+    - condition: "ratio_sports > 0.50"
+      persona: "sports_cold_start"
+      priority: 1
+    - condition: "(ratio_celebrity + ratio_entertainment) > 0.50"
+      persona: "celebrity_cold_start"
+      priority: 2
+    - condition: "has_subscription == True"
+      persona: "subscription_cold_start"
+      priority: 3
+    - condition: "newsletter_count > 0"
+      persona: "newsletter_cold_start"
+      priority: 4
+    - condition: "default"
+      persona: "new_user"
+      priority: 5
+
+personas:
+  labels:
+    - loyalist
+    - subscription_focused
+    - high_value_shopper
+    - sports_focused
+    - social_engager
+    - occasional_buyer
+    - celebrity_entertainment
+    - casual_reader
+    - low_engager
+  naming_rules:
+    - top_feature: "ratio_sports"
+      supporting: ["nl_sports_alerts"]
+      label: "sports_focused"
+    - top_feature: "total_comments"
+      supporting: ["total_likes_given", "total_shares"]
+      label: "social_engager"
+    - top_feature: "conversion_rate"
+      supporting: ["avg_transaction_value", "total_affiliate_clicks"]
+      label: "high_value_shopper"
+    - top_feature: "total_billing_cycles"
+      supporting: ["account_age_days", "open_rate"]
+      label: "loyalist"
+    - top_feature: "newsletter_count"
+      supporting: ["open_rate", "click_through_rate"]
+      label: "subscription_focused"
+    - top_feature: "ratio_celebrity"
+      supporting: ["ratio_entertainment", "total_shares"]
+      label: "celebrity_entertainment"
+    - top_feature: "bounce_rate"
+      supporting: ["days_since_last_visit"]
+      label: "low_engager"
+    - top_feature: "ratio_shopping"
+      supporting: ["total_affiliate_clicks"]
+      label: "occasional_buyer"
+    - top_feature: "default"
+      supporting: []
+      label: "casual_reader"
+
+email_engagement:
+  low_threshold: 0.15
+  high_threshold: 0.35
+
+monitoring:
+  persona_distribution_drift_threshold: 0.30
+  feature_drift_threshold: 0.20
+  max_drifting_features: 3
+  ga4_coverage_alert_threshold: 0.90
+  transunion_coverage_alert_threshold: 0.60
+  pipeline_runtime_multiplier: 2.0
+
+etl:
+  row_count_deviation_threshold: 0.20
+  transunion_min_confidence: 0.70
+  new_user_session_threshold: 4
+  sources:
+    zephr:
+      mode: "incremental"
+    ga4:
+      mode: "incremental"
+    braintree:
+      mode: "incremental"
+    sailthru:
+      mode: "full_refresh"
+    pushly:
+      mode: "incremental"
+    openweb:
+      mode: "incremental"
+    trackonomics:
+      mode: "incremental"
+    transunion:
+      mode: "full_refresh"
+
+feature_engineering:
+  backend: "pandas"
+  spark_master: "local[*]"
+
+api:
+  batch_max_size: 1000
+  rate_limit_per_minute: 1000

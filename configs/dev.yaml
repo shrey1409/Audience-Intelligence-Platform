@@ -1,0 +1,12 @@
+# Development overrides — extends base.yaml
+project:
+  environment: "development"
+
+database:
+  echo: true
+
+feature_engineering:
+  backend: "pandas"
+
+api:
+  rate_limit_per_minute: 10000
