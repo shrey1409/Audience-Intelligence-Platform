@@ -1,0 +1,14 @@
+# Production overrides — extends base.yaml
+project:
+  environment: "production"
+
+database:
+  echo: false
+  pool_size: 20
+  max_overflow: 40
+
+feature_engineering:
+  backend: "dask"
+
+api:
+  rate_limit_per_minute: 1000

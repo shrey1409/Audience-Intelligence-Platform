@@ -1,0 +1,29 @@
+# ================================================================
+# Client Configuration Template
+# Copy this file to configs/clients/{client_name}.yaml
+# Never commit real client files — only this template is committed
+# ================================================================
+
+client:
+  name: "example_client"
+  display_name: "Example Publisher"
+
+database:
+  schema: "example_client"
+
+ml:
+  clustering:
+    k_min: 5
+    k_max: 12
+    random_state: 42
+
+  propensity:
+    subscription:
+      weights:
+        newsletter_count_scaled: 0.30
+        open_rate_scaled: 0.25
+        days_since_last_visit_scaled_inverted: 0.25
+        dist_to_subscription_focused_inverted: 0.20
+
+monitoring:
+  persona_distribution_drift_threshold: 0.30
