@@ -1,0 +1,13 @@
+# Airflow dependencies are isolated from requirements/base.txt
+# because Airflow pins SQLAlchemy, Flask, and FAB at versions
+# that conflict with the project's FastAPI + SQLAlchemy 2.0 stack.
+#
+# Usage:
+#   pip install -r requirements/airflow.txt   (for local DAG development)
+#   Docker: use the official apache/airflow:2.9.3 image (see docker-compose.yml)
+#
+# Do NOT mix this into requirements/base.txt or requirements/dev.txt.
+
+apache-airflow==2.9.3
+apache-airflow-providers-postgres==5.10.2
+apache-airflow-providers-http==4.10.0
