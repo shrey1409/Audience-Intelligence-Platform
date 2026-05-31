@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import os
-import warnings
 
 import pytest
 from sqlalchemy import create_engine, text
@@ -12,48 +11,90 @@ from sqlalchemy.exc import IntegrityError
 pytestmark = pytest.mark.integration
 
 
+def _run_migrations_for_schema(schema: str, db_url: str) -> None:
+    """Run Alembic upgrade head via subprocess — avoids the settings singleton cache."""
+    import subprocess  # noqa: PLC0415
+    import sys  # noqa: PLC0415
+
+    env = {
+        **os.environ,
+        "DATABASE__SCHEMA": schema,
+        "DATABASE__URL": db_url,
+        "PYTHONPATH": ".",
+    }
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-W",
+            "ignore::UserWarning",
+            "-m",
+            "alembic",
+            "upgrade",
+            "head",
+        ],
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"Alembic upgrade failed for schema {schema!r}:\n"
+            f"stdout: {result.stdout}\nstderr: {result.stderr}"
+        )
+
+
+def _run_downgrade_for_schema(schema: str, db_url: str) -> None:
+    """Run Alembic downgrade base for a specific schema via subprocess."""
+    import subprocess  # noqa: PLC0415
+    import sys  # noqa: PLC0415
+
+    env = {
+        **os.environ,
+        "DATABASE__SCHEMA": schema,
+        "DATABASE__URL": db_url,
+        "PYTHONPATH": ".",
+    }
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-W",
+            "ignore::UserWarning",
+            "-m",
+            "alembic",
+            "downgrade",
+            "base",
+        ],
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"Alembic downgrade failed for schema {schema!r}:\n"
+            f"stdout: {result.stdout}\nstderr: {result.stderr}"
+        )
+
+
 @pytest.fixture(scope="function")
 def migrated_schema(test_schema: str, test_db_url: str) -> str:
-    """Run Alembic upgrade head against the isolated test schema."""
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore", UserWarning)
+    """Create an isolated schema, run Alembic upgrade head, yield schema name."""
+    # Create schema
+    engine = create_engine(test_db_url)
+    with engine.connect() as conn:
+        conn.execute(text(f"CREATE SCHEMA IF NOT EXISTS {test_schema}"))
+        conn.commit()
+    engine.dispose()
 
-    original_schema = os.environ.get("DATABASE__SCHEMA", "public")
-    os.environ["DATABASE__SCHEMA"] = test_schema
-
-    try:
-        import importlib
-
-        import app.core.config as cfg_mod
-
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", UserWarning)
-            importlib.reload(cfg_mod)
-
-        from scripts.run_migrations import run_migrations  # noqa: PLC0415
-
-        run_migrations()
-    finally:
-        os.environ["DATABASE__SCHEMA"] = original_schema
+    # Run migrations in a subprocess so the settings singleton is fresh
+    _run_migrations_for_schema(test_schema, test_db_url)
 
     return test_schema
 
 
 def test_run_migrations_creates_schema(test_schema: str, test_db_url: str) -> None:
     """run_migrations.py creates the configured schema if it does not already exist."""
-    import importlib
-    import os
-
-    os.environ["DATABASE__SCHEMA"] = test_schema
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore", UserWarning)
-        import app.core.config as cfg_mod
-
-        importlib.reload(cfg_mod)
-
-    from scripts.run_migrations import run_migrations  # noqa: PLC0415
-
-    run_migrations()
+    # Run migrations in subprocess — creates schema + applies upgrade head
+    _run_migrations_for_schema(test_schema, test_db_url)
 
     engine = create_engine(test_db_url)
     with engine.connect() as conn:
@@ -69,7 +110,21 @@ def test_run_migrations_creates_schema(test_schema: str, test_db_url: str) -> No
     engine.dispose()
     assert row is not None, f"Schema {test_schema!r} was not created"
 
-    os.environ["DATABASE__SCHEMA"] = "public"
+
+def test_alembic_upgrade_head_completes_without_error(
+    migrated_schema: str, test_db_url: str
+) -> None:
+    """Alembic upgrade head writes alembic_version row to the configured schema."""
+    engine = create_engine(test_db_url)
+    with engine.connect() as conn:
+        result = conn.execute(
+            text("SELECT version_num FROM " f"{migrated_schema}.alembic_version")
+        )
+        row = result.fetchone()
+
+    engine.dispose()
+    assert row is not None, "alembic_version row missing after upgrade head"
+    assert row[0], f"alembic_version revision is empty: {row[0]!r}"
 
 
 def test_all_10_tables_exist_after_migration(
@@ -154,21 +209,7 @@ def test_alembic_downgrade_drops_all_tables(
     migrated_schema: str, test_db_url: str
 ) -> None:
     """Alembic downgrade to base removes all application tables from the schema."""
-    import importlib
-    import os
-
-    os.environ["DATABASE__SCHEMA"] = migrated_schema
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore", UserWarning)
-        import app.core.config as cfg_mod
-
-        importlib.reload(cfg_mod)
-
-    from alembic import command  # noqa: PLC0415
-    from alembic.config import Config  # noqa: PLC0415
-
-    alembic_cfg = Config("alembic.ini")
-    command.downgrade(alembic_cfg, "base")
+    _run_downgrade_for_schema(migrated_schema, test_db_url)
 
     engine = create_engine(test_db_url)
     with engine.connect() as conn:
@@ -183,4 +224,3 @@ def test_alembic_downgrade_drops_all_tables(
 
     engine.dispose()
     assert count == 0, f"Expected 0 tables after downgrade, got {count}"
-    os.environ["DATABASE__SCHEMA"] = "public"

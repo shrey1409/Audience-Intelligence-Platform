@@ -214,8 +214,13 @@ class Settings(BaseSettings):
 
     @classmethod
     def from_yaml_and_env(cls) -> "Settings":
-        """Merge YAML configs then apply environment variable overrides."""
+        """Merge YAML configs, apply explicit env var overrides, then create Settings.
+
+        Environment variables take priority over YAML values.
+        Process env vars → .env file → client YAML → env YAML → base YAML (lowest).
+        """
         merged = _load_and_merge_yaml()
+        _apply_env_overrides(merged)
         return cls(**merged)
 
 
@@ -230,6 +235,30 @@ def _deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any
         else:
             base[key] = value
     return base
+
+
+def _apply_env_overrides(merged: dict[str, Any]) -> None:
+    """Apply process environment variable overrides into the merged YAML dict.
+
+    Handles DATABASE__SCHEMA and DATABASE__URL so they can be overridden at
+    runtime without relying on Pydantic-settings constructor kwargs priority.
+    Env var format: SECTION__FIELD maps to merged[section][field].
+    """
+    delimiter = "__"
+    for key, value in os.environ.items():
+        if delimiter in key:
+            parts = key.lower().split(delimiter, 1)
+            if len(parts) == 2 and parts[0] in merged:
+                section, field = parts
+                if isinstance(merged.get(section), dict):
+                    # JSON-parse list/dict values so Pydantic receives the right type
+                    import json  # noqa: PLC0415
+
+                    try:
+                        parsed = json.loads(value)
+                    except (json.JSONDecodeError, TypeError):
+                        parsed = value
+                    merged[section][field] = parsed
 
 
 def _load_and_merge_yaml() -> dict[str, Any]:
