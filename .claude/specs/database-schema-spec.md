@@ -1,14 +1,31 @@
 # AUDIENCE INTELLIGENCE PLATFORM — DATABASE SCHEMA SPECIFICATION
 
-**Version:** 1.0
+**Version:** 1.1
 **Status:** APPROVED FOR PHASE 2 IMPLEMENTATION
 **Source:** master-specification.md v1.0 + system_design-spec.md v1.0
-**Date:** 2026-05-31
+**Date:** 2026-05-31 (v1.0) | Corrected: 2026-05-31 (v1.1)
 **Scope:** Phase 2 — all 9 staging tables + ga4_identity_bridge + ORM models + migrations
 
 > This document is the PRIMARY INPUT for Claude Code Plan Mode Phase 2 implementation.
 > Every section is implementation-ready. No section contains TBD, TODO, or "to be determined."
 > Open questions Q1–Q7 are each answered with a binding decision.
+
+---
+
+## CORRECTIONS APPLIED IN v1.1
+
+Six implementation-blocking issues were identified in v1.0 and corrected here:
+
+| # | Correction | Location | Severity |
+|---|------------|----------|----------|
+| C1 | `Timestamp` → `DateTime` in all ORM imports and mapped_column declarations. `Timestamp` is not a valid SQLAlchemy type; using it causes `ImportError` at runtime. | Section 4 — all 10 models | 🔴 Critical |
+| C2 | Removed deprecated `version: "3.9"` from docker-compose.yml. Docker Compose v2 warns on this key; it is not needed. | Section 9.2 | 🟡 Minor |
+| C3 | Added `from decimal import Decimal` to the shared ORM import block. All models using `Mapped[Decimal]` and `default=Decimal("0")` fail with `NameError` without this import. | Section 4 — shared imports | 🔴 Critical |
+| C4 | Added `date` to datetime imports (`from datetime import date, datetime`). Changed `Mapped[datetime.date]` → `Mapped[date]` throughout. Without this, date-typed columns raise `NameError`. | Section 4 — all models with date columns | 🔴 Critical |
+| C5 | Added `ForeignKey()` reference inside `mapped_column()` for all FK columns across all models. Without `ForeignKey()`, SQLAlchemy does not enforce referential integrity at the ORM level and Alembic autogenerate ignores FK relationships. | Section 4 — FK columns in 7 models | 🔴 Critical |
+| C6 | Added `alembic/versions/.gitkeep` to Phase 2 deliverables. Git does not track empty directories; without `.gitkeep`, `alembic/versions/` is not committed and Alembic cannot write migration files. | Section 1 — deliverables list | 🟡 Minor |
+
+**All other content from v1.0 is unchanged and correct.**
 
 ---
 
@@ -60,6 +77,7 @@
 | 21 | `alembic.ini` | **new** | Alembic configuration (no sqlalchemy.url — injected at runtime) | nothing |
 | 22 | `alembic/env.py` | **new** | Schema-aware migration env (include_schemas, include_object, version_table_schema) | #4, #20, #21 |
 | 23 | `alembic/versions/` | **new dir** | Empty directory; initial migration file added after alembic revision command | #22 |
+| 23a | `alembic/versions/.gitkeep` | **new** | Ensures empty alembic/versions/ directory is tracked by Git | #23 |
 | 24 | `scripts/run_migrations.py` | **new** | CREATE SCHEMA IF NOT EXISTS + alembic upgrade head | #4, #21, #22, #23 |
 | 25 | `sql/ddl/001_create_zephr_users.sql` | **new** | Human-readable DDL reference for zephr_users | nothing |
 | 26 | `sql/ddl/002_create_ga4_events.sql` | **new** | Human-readable DDL reference for ga4_events | nothing |
@@ -710,11 +728,14 @@ CONSTRAINT fk_transunion_demographics_user_id
 ```python
 from __future__ import annotations
 import uuid
-from datetime import datetime
-from sqlalchemy import Boolean, Date, Integer, Numeric, SmallInteger, String, Text, Timestamp
+from datetime import date, datetime
+from decimal import Decimal
+
+from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Integer, Numeric, SmallInteger, String, Text
 from sqlalchemy import func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
+
 from app.core.config import settings
 from app.models.orm.base import Base
 ```
@@ -740,9 +761,9 @@ first_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
 last_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
 account_age_days: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 is_registered: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
-registration_date: Mapped[datetime] = mapped_column(Timestamp, nullable=False)
-created_at: Mapped[datetime] = mapped_column(Timestamp, server_default=func.now(), nullable=False)
-updated_at: Mapped[datetime] = mapped_column(Timestamp, server_default=func.now(), onupdate=func.now(), nullable=False)
+registration_date: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
+updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now(), nullable=False)
 ```
 
 Imports: standard set above.
@@ -757,18 +778,22 @@ Class: Ga4Events
 __tablename__: "ga4_events"
 
 event_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+user_id: Mapped[uuid.UUID | None] = mapped_column(
+    UUID(as_uuid=True),
+    ForeignKey(f"{settings.database.schema}.zephr_users.user_id", ondelete="SET NULL"),
+    nullable=True
+)
 user_pseudo_id: Mapped[str] = mapped_column(String(64), nullable=False)
 event_name: Mapped[str] = mapped_column(String(100), nullable=False)
-event_date: Mapped[datetime.date] = mapped_column(Date, nullable=False)
-event_timestamp: Mapped[datetime] = mapped_column(Timestamp, nullable=False)
+event_date: Mapped[date] = mapped_column(Date, nullable=False)
+event_timestamp: Mapped[datetime] = mapped_column(DateTime, nullable=False)
 session_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
 device_category: Mapped[str | None] = mapped_column(String(50), nullable=True)
 page_category: Mapped[str | None] = mapped_column(String(50), nullable=True)
 page_path: Mapped[str | None] = mapped_column(Text, nullable=True)
 engagement_time_msec: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 is_bounce: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-created_at: Mapped[datetime] = mapped_column(Timestamp, server_default=func.now(), nullable=False)
+created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
 ```
 
 Additional import: `from datetime import date` (for `datetime.date` type annotation, use `date` directly).
@@ -783,11 +808,15 @@ __tablename__: "ga4_identity_bridge"
 
 bridge_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
 user_pseudo_id: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
-user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
-first_seen_at: Mapped[datetime] = mapped_column(Timestamp, nullable=False)
-last_seen_at: Mapped[datetime] = mapped_column(Timestamp, nullable=False)
-created_at: Mapped[datetime] = mapped_column(Timestamp, server_default=func.now(), nullable=False)
-updated_at: Mapped[datetime] = mapped_column(Timestamp, server_default=func.now(), onupdate=func.now(), nullable=False)
+user_id: Mapped[uuid.UUID] = mapped_column(
+    UUID(as_uuid=True),
+    ForeignKey(f"{settings.database.schema}.zephr_users.user_id", ondelete="CASCADE"),
+    nullable=False
+)
+first_seen_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+last_seen_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
+updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now(), nullable=False)
 ```
 
 ---
@@ -799,7 +828,11 @@ Class: BraintreeSubscriptions
 __tablename__: "braintree_subscriptions"
 
 subscription_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+user_id: Mapped[uuid.UUID] = mapped_column(
+    UUID(as_uuid=True),
+    ForeignKey(f"{settings.database.schema}.zephr_users.user_id", ondelete="CASCADE"),
+    nullable=False
+)
 braintree_customer_id: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
 plan_id: Mapped[str] = mapped_column(String(50), nullable=False)
 status: Mapped[str] = mapped_column(String(20), nullable=False)
@@ -807,11 +840,11 @@ amount: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
 currency: Mapped[str] = mapped_column(String(3), nullable=False, default="USD")
 billing_cycle_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 next_billing_date: Mapped[date | None] = mapped_column(Date, nullable=True)
-started_at: Mapped[datetime] = mapped_column(Timestamp, nullable=False)
-canceled_at: Mapped[datetime | None] = mapped_column(Timestamp, nullable=True)
+started_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+canceled_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 payment_method: Mapped[str | None] = mapped_column(String(20), nullable=True)
-created_at: Mapped[datetime] = mapped_column(Timestamp, server_default=func.now(), nullable=False)
-updated_at: Mapped[datetime] = mapped_column(Timestamp, server_default=func.now(), onupdate=func.now(), nullable=False)
+created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
+updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now(), nullable=False)
 ```
 
 Additional import: `from decimal import Decimal` and `from datetime import date`.
@@ -825,7 +858,11 @@ Class: SailthruNewsletter
 __tablename__: "sailthru_newsletter"
 
 record_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+user_id: Mapped[uuid.UUID | None] = mapped_column(
+    UUID(as_uuid=True),
+    ForeignKey(f"{settings.database.schema}.zephr_users.user_id", ondelete="SET NULL"),
+    nullable=True
+)
 email: Mapped[str] = mapped_column(String(254), nullable=False)
 newsletter_count: Mapped[int] = mapped_column(SmallInteger, nullable=False, default=0)
 open_rate: Mapped[Decimal] = mapped_column(Numeric(5, 4), nullable=False, default=Decimal("0"))
@@ -843,9 +880,9 @@ nl_breaking_news: Mapped[bool] = mapped_column(Boolean, nullable=False, default=
 nl_real_estate: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 nl_tech_news: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 nl_lifestyle_weekly: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-last_synced_at: Mapped[datetime | None] = mapped_column(Timestamp, nullable=True)
-created_at: Mapped[datetime] = mapped_column(Timestamp, server_default=func.now(), nullable=False)
-updated_at: Mapped[datetime] = mapped_column(Timestamp, server_default=func.now(), onupdate=func.now(), nullable=False)
+last_synced_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
+updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now(), nullable=False)
 ```
 
 ---
@@ -857,17 +894,21 @@ Class: PushlySubscribers
 __tablename__: "pushly_subscribers"
 
 subscriber_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+user_id: Mapped[uuid.UUID] = mapped_column(
+    UUID(as_uuid=True),
+    ForeignKey(f"{settings.database.schema}.zephr_users.user_id", ondelete="CASCADE"),
+    nullable=False
+)
 external_id: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
 platform: Mapped[str] = mapped_column(String(20), nullable=False)
 push_opted_in: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
 push_is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
-opted_in_at: Mapped[datetime] = mapped_column(Timestamp, nullable=False)
-opted_out_at: Mapped[datetime | None] = mapped_column(Timestamp, nullable=True)
-last_push_sent_at: Mapped[datetime | None] = mapped_column(Timestamp, nullable=True)
+opted_in_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+opted_out_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+last_push_sent_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 push_open_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-created_at: Mapped[datetime] = mapped_column(Timestamp, server_default=func.now(), nullable=False)
-updated_at: Mapped[datetime] = mapped_column(Timestamp, server_default=func.now(), onupdate=func.now(), nullable=False)
+created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
+updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now(), nullable=False)
 ```
 
 ---
@@ -879,12 +920,16 @@ Class: OpenwebEngagement
 __tablename__: "openweb_engagement"
 
 engagement_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+user_id: Mapped[uuid.UUID] = mapped_column(
+    UUID(as_uuid=True),
+    ForeignKey(f"{settings.database.schema}.zephr_users.user_id", ondelete="CASCADE"),
+    nullable=False
+)
 event_type: Mapped[str] = mapped_column(String(20), nullable=False)
 content_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
 content_category: Mapped[str | None] = mapped_column(String(50), nullable=True)
-engaged_at: Mapped[datetime] = mapped_column(Timestamp, nullable=False)
-created_at: Mapped[datetime] = mapped_column(Timestamp, server_default=func.now(), nullable=False)
+engaged_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
 ```
 
 ---
@@ -896,14 +941,18 @@ Class: TrackonomicsClicks
 __tablename__: "trackonomics_clicks"
 
 click_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+user_id: Mapped[uuid.UUID] = mapped_column(
+    UUID(as_uuid=True),
+    ForeignKey(f"{settings.database.schema}.zephr_users.user_id", ondelete="CASCADE"),
+    nullable=False
+)
 advertiser_id: Mapped[str] = mapped_column(String(100), nullable=False)
 product_category: Mapped[str | None] = mapped_column(String(30), nullable=True)
-click_timestamp: Mapped[datetime] = mapped_column(Timestamp, nullable=False)
+click_timestamp: Mapped[datetime] = mapped_column(DateTime, nullable=False)
 converted: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 transaction_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
 transaction_amount: Mapped[Decimal | None] = mapped_column(Numeric(10, 2), nullable=True)
-created_at: Mapped[datetime] = mapped_column(Timestamp, server_default=func.now(), nullable=False)
+created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
 ```
 
 ---
@@ -927,9 +976,9 @@ home_ownership: Mapped[str | None] = mapped_column(String(10), nullable=True)
 education: Mapped[str | None] = mapped_column(String(20), nullable=True)
 address_state: Mapped[str | None] = mapped_column(String(2), nullable=True)
 address_zip: Mapped[str | None] = mapped_column(String(10), nullable=True)
-match_date: Mapped[datetime.date] = mapped_column(Date, nullable=False)
-created_at: Mapped[datetime] = mapped_column(Timestamp, server_default=func.now(), nullable=False)
-updated_at: Mapped[datetime] = mapped_column(Timestamp, server_default=func.now(), onupdate=func.now(), nullable=False)
+match_date: Mapped[date] = mapped_column(Date, nullable=False)
+created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
+updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now(), nullable=False)
 ```
 
 ---
@@ -943,8 +992,8 @@ __table_args__: {"schema": settings.database.schema}
 
 # --- Identity (4) ---
 user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-created_at: Mapped[datetime] = mapped_column(Timestamp, server_default=func.now(), nullable=False)
-updated_at: Mapped[datetime] = mapped_column(Timestamp, server_default=func.now(), onupdate=func.now(), nullable=False)
+created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
+updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now(), nullable=False)
 is_new_user: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
 # --- Web behaviour (11) ---
@@ -1018,7 +1067,7 @@ persona_label: Mapped[str | None] = mapped_column(String(50), nullable=True)
 cluster_id: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
 algorithm_used: Mapped[str | None] = mapped_column(String(50), nullable=True)
 cluster_score: Mapped[Decimal | None] = mapped_column(Numeric(6, 4), nullable=True)
-last_updated: Mapped[datetime | None] = mapped_column(Timestamp, nullable=True)
+last_updated: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 subscription_propensity_score: Mapped[Decimal | None] = mapped_column(Numeric(6, 4), nullable=True)
 churn_propensity_score: Mapped[Decimal | None] = mapped_column(Numeric(6, 4), nullable=True)
 commerce_propensity_score: Mapped[Decimal | None] = mapped_column(Numeric(6, 4), nullable=True)
@@ -1368,7 +1417,6 @@ CREATE DATABASE airflow OWNER aip_user;
 ### 9.2 — docker-compose.yml (Phase 2 minimal — postgres + redis only)
 
 ```yaml
-version: "3.9"
 
 services:
   postgres:
@@ -1866,7 +1914,7 @@ The `sql/ddl/` files are committed alongside the Alembic migration in the same P
 ## COMPLETION SUMMARY
 
 ╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
-Database Schema Specification complete ✅
+Database Schema Specification v1.1 complete ✅
 ╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
 Saved to: .claude/specs/database-schema-spec.md
 Sections completed: 13
