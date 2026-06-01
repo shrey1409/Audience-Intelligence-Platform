@@ -1,18 +1,16 @@
 # Current Status — Audience Intelligence Platform
 
 **Last updated:** 2026-06-01
-**Current phase:** 3 — Synthetic Data Generation (SPEC READY — branch: feature/phase03-synthetic-data)
-**Current branch:** feature/phase02-implementation (Phase 2 implementation — ready to merge)
+**Current phase:** 3 — Synthetic Data Generation (SPEC READY — not yet implemented)
+**Current branch:** feature/phase03-synthetic-data
 
 ## Completed Phases
 
 - Phase 1: Environment Setup ✅ — merged to main
-- Phase 2: Database Schema ✅ — implemented on feature/phase02-implementation
-  - 37 files created (all 4 app/core, 10 ORM models, alembic migration, 10 DDL files, 3 test files)
-  - 10 tables created in PostgreSQL via Alembic
-  - 64-column feature_store confirmed
-  - 16/16 tests passing (10 unit + 6 integration)
-  - Pre-commit: all hooks passed
+- Phase 2: Database Schema ✅ — merged to main (PR #5)
+  - 37 files: app/core (4), 10 ORM models, Alembic migration, 10 DDL files, 3 test files
+  - 10 tables in PostgreSQL, feature_store=64 cols, 46 ML features
+  - 16/16 tests passing, pre-commit clean
 
 ## Phase 2 Watch-Outs for Future Phases
 
