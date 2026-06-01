@@ -4,9 +4,10 @@ argument-hint: (no arguments)
 allowed-tools: Read, Glob, Bash(python3:*)
 ---
 
-<!-- CONTEXT BUDGET: ~50K tokens max. Load only files listed below. -->
+<!-- CONTEXT BUDGET: ~18K tokens. Load ONLY: project_context/00_global.md + 02_ml_context.md + configs/base.yaml -->
 
-You have .claude/CLAUDE.md context. You will read configs/base.yaml in full below.
+Read .claude/project_context/00_global.md for standards.
+Read .claude/project_context/02_ml_context.md for ML config expectations.
 
 ## Step 1 — Load configs/base.yaml
 Read `configs/base.yaml` in full. All checks below are derived from this file.

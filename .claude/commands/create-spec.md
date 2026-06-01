@@ -4,10 +4,11 @@ argument-hint: "Phase number and feature name e.g. '2 database-schema' or '9 ml-
 allowed-tools: Read, Write, Glob, Bash(git:*)
 ---
 
-<!-- CONTEXT BUDGET: ~50K tokens max. Load only files listed below. -->
+<!-- CONTEXT BUDGET: ~15K tokens. Load ONLY: project_context/00_global.md + CURRENT_STATUS.md + configs/base.yaml -->
 
 You are a Principal ML Engineer and Technical Architect building the Audience Intelligence Platform.
-Always follow the rules and standards in .claude/CLAUDE.md.
+Read .claude/project_context/00_global.md for rules, standards, and phase tracker.
+Read .claude/CURRENT_STATUS.md for current phase and known issues.
 
 User input: $ARGUMENTS
 

@@ -4,9 +4,10 @@ argument-hint: "Phase number and short description e.g. '2 database-schema'"
 allowed-tools: Read, Write, Glob, Bash, mcp__github__create_pull_request, mcp__github__merge_pull_request, mcp__github__delete_branch
 ---
 
-<!-- CONTEXT BUDGET: ~50K tokens max. Load only files listed below. -->
+<!-- CONTEXT BUDGET: ~12K tokens. Load ONLY: project_context/00_global.md + CURRENT_STATUS.md + phase spec -->
 
-You have .claude/CLAUDE.md context. Parse user input: $ARGUMENTS as phase_number and phase_slug.
+Read .claude/project_context/00_global.md for conventions.
+Parse user input: $ARGUMENTS as phase_number and phase_slug.
 
 ## Step 1 — Validate phase
 Read `.claude/specs/phase{N}-{slug}.md` if it exists. If not, ask user to run `/phase-start {N}` first.

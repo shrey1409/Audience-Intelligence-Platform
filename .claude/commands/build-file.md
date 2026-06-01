@@ -4,9 +4,11 @@ argument-hint: <relative_file_path>  e.g. "app/core/config.py"
 allowed-tools: Read, Write, Glob, Bash(git:*), Bash(python3:*)
 ---
 
-<!-- CONTEXT BUDGET: ~50K tokens max. Load only files listed below. -->
+<!-- CONTEXT BUDGET: ~15K tokens. Load ONLY: project_context/00_global.md + CURRENT_STATUS.md + configs/base.yaml + target file -->
 
-You have .claude/CLAUDE.md context. The user passed `$ARGUMENTS` as the file path to build (relative to project root).
+Read .claude/project_context/00_global.md for coding standards.
+Read .claude/CURRENT_STATUS.md for phase context.
+The user passed `$ARGUMENTS` as the file path to build (relative to project root).
 
 ## Step 1 — Load config context
 Read `configs/base.yaml` — this is the single source of truth for all config values.
