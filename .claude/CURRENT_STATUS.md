@@ -1,38 +1,32 @@
 # Current Status — Audience Intelligence Platform
 
-**Last updated:** 2026-06-01 09:30 UTC
-**Current phase:** 2 — Database Schema
-**Current branch:** feature/phase2-database-schema (uncommitted changes: project_journal/)
-**Working directory:** UNCLEAN (see Known Issues)
-
----
+**Last updated:** 2026-06-01 16:00 UTC
+**Current phase:** 3 — Synthetic Data Generation (NOT STARTED)
+**Current branch:** main (clean)
 
 ## Completed Phases
 
-### Phase 1: Environment Setup ✅
-- Docker Compose stack running (postgres, redis, mlflow)
-- requirements/base.txt and requirements/dev.txt pinned
-- app/core/config.py loads configs/base.yaml with Pydantic-settings
-- Pre-commit hooks configured (Black, isort, flake8, mypy)
-- CI/CD skeleton in place (.github/workflows/)
+- Phase 1: Environment Setup ✅ — merged to main
+- Phase 2: Database Schema ✅ — merged to main
+  - 10 tables (9 source + ga4_identity_bridge)
+  - 64-column feature_store
+  - 16/16 tests passing
+  - 4 bugs fixed during verification
 
-**Status:** Merged to main. Ready for Phase 2.
+## Phase 2 Watch-Outs for Future Phases
 
-### Phase 2: Database Schema 🔄 (IN PROGRESS)
-- 10 SQL DDL files created (9 staging tables + 1 feature_store)
-- All DDL files use `{schema}` placeholder for multi-tenancy
-- 16 SQLAlchemy ORM models created (one per table, with `__table_args__`)
-- Alembic migrations auto-generated from ORM models
-- Integration tests for schema isolation verified (client_a ≠ client_b)
-- Tests: 16/16 passing (unit + integration)
+- **importlib.reload() does not work for schema override in tests** — use subprocess
+- **Pydantic-settings constructor kwargs override env vars** — fixed in config.py
+- **Docker volume reset:** `docker compose down -v` for clean slate
+- **Alembic schema must come from settings, never hardcoded**
 
-**Deliverables:**
-- `sql/ddl/001_create_user_profiles.sql` through `010_create_persona_assignments.sql`
-- `app/models/orm/` directory with 10 model files
-- `migrations/versions/` with Alembic revision files
-- `tests/integration/test_schema_isolation.py` (DDL ↔ ORM parity verified)
+## Context Optimization Complete
 
-**Status:** Ready for review/merge. Next: Phase 3 (Synthetic Data Generation)
+- **CLAUDE.md:** 61 lines (was 189)
+- **4 reference files** in .claude/specs/reference/
+- **Large specs archived** in .claude/archive/
+- **All 10 commands optimized** for conditional reading
+- **Baseline session context:** ~18K tokens (was 59K, 69% reduction)
 
 ---
 
