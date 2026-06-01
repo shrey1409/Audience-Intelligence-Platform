@@ -7,8 +7,8 @@
 | Phase | Name                | Status | Branch |
 |-------|---------------------|--------|--------|
 | 1 | environment-setup | ✅ | merged |
-| 2 | database-schema | 🔄 | feature/phase2-database-schema |
-| 3 | synthetic-data | ⏳ | — |
+| 2 | database-schema | ✅ | merged |
+| 3 | synthetic-data | 🔄 | feature/phase03-synthetic-data |
 | 4 | etl-ingestion | ⏳ | — |
 | 5 | feature-engineering | ⏳ | — |
 | 6 | ml-training | ⏳ | — |
