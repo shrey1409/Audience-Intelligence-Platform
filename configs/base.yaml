@@ -197,6 +197,32 @@ feature_engineering:
   backend: "pandas"
   spark_master: "local[*]"
 
+synthetic_data:
+  n_users: 100000
+  random_seed: 42
+  batch_size: 5000
+  ga4_events_per_user_mean: 150
+  ga4_events_per_user_std: 50
+  transunion_high_confidence_ratio: 0.85
+  persona_distribution:
+    low_engager: 0.506
+    casual_reader: 0.154
+    sports_focused: 0.101
+    celebrity_entertainment: 0.097
+    social_engager: 0.077
+    occasional_buyer: 0.029
+    subscription_focused: 0.028
+    loyalist: 0.011
+    high_value_shopper: 0.006
+  source_coverage:
+    ga4: 0.95
+    braintree: 0.10
+    sailthru: 1.00
+    pushly: 0.35
+    openweb: 0.23
+    trackonomics: 0.16
+    transunion: 0.70
+
 api:
   batch_max_size: 1000
   rate_limit_per_minute: 1000
