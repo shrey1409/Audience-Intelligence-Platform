@@ -4,10 +4,9 @@ argument-hint: <phase_number>  e.g. "2"
 allowed-tools: Read, Write, Glob, Bash(git:*), Bash(python3:*), Bash(pytest:*)
 ---
 
-<!-- CONTEXT BUDGET: ~50K tokens max. Load only files listed below. -->
+<!-- CONTEXT BUDGET: ~12K tokens. Load ONLY: project_context/00_global.md + CURRENT_STATUS.md + phase spec -->
 
-You have .claude/CLAUDE.md context. Read the phase spec below.
-
+Read .claude/project_context/00_global.md for standards.
 The user passed `$ARGUMENTS` as the phase number (e.g. "2").
 
 ## Step 1 — Load phase spec

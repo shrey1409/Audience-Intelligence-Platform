@@ -4,9 +4,10 @@ argument-hint: <phase_number> "<commit message>"  e.g. "2 \"add 9 ORM models and
 allowed-tools: Read, Bash(git:*)
 ---
 
-<!-- CONTEXT BUDGET: ~50K tokens max. Load only files listed below. -->
+<!-- CONTEXT BUDGET: ~8K tokens. Load ONLY: project_context/00_global.md + phase spec (if needed) -->
 
-You have .claude/CLAUDE.md context. The user passed `$ARGUMENTS` as: first token = `PHASE_NUMBER`, rest = `COMMIT_MESSAGE`.
+Read .claude/project_context/00_global.md for git conventions.
+The user passed `$ARGUMENTS` as: first token = `PHASE_NUMBER`, rest = `COMMIT_MESSAGE`.
 
 ## Step 1 — Verify validation was run
 Check if `.claude/specs/phase{N}-*.md` exists. If it doesn't, stop: "Run /phase-start {N} first."

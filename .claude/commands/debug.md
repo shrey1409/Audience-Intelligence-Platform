@@ -4,11 +4,11 @@ argument-hint: "<description of the problem>"  e.g. "ImportError when running ap
 allowed-tools: Read, Glob, Bash(git:*), Bash(python3:*), Bash(docker:*)
 ---
 
-<!-- CONTEXT BUDGET: ~50K tokens max. Load only files listed below. -->
+<!-- CONTEXT BUDGET: ~10K tokens. Load ONLY: project_context/00_global.md + CURRENT_STATUS.md + targeted files based on problem -->
 
-You have .claude/CLAUDE.md context automatically. Read targeted files below based on the problem.
-
+Read .claude/project_context/00_global.md for coding standards and conventions.
 The user described the problem in `$ARGUMENTS`. Read it carefully before doing anything else.
+Use recovery prompts in project_context/06_session_recovery.md if needed.
 
 ## Step 1 — Understand the problem category
 Classify the problem into one of these categories based on the description:

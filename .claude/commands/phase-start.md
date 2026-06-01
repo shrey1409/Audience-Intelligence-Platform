@@ -4,9 +4,10 @@ argument-hint: <phase_number> <phase-name>  e.g. "3 etl-ingestion"
 allowed-tools: Read, Write, Glob, Bash(git:*), Bash(python3:*)
 ---
 
-<!-- CONTEXT BUDGET: ~50K tokens max. Load only files listed below. -->
+<!-- CONTEXT BUDGET: ~12K tokens. Load ONLY: project_context/00_global.md + CURRENT_STATUS.md + configs/base.yaml -->
 
-You have .claude/CLAUDE.md and .claude/CURRENT_STATUS.md context. Read configs/base.yaml for all config values.
+Read .claude/project_context/00_global.md for git conventions and standards.
+Read .claude/CURRENT_STATUS.md for current phase and blockers.
 
 The user has passed two arguments: `$ARGUMENTS` — parse them as `PHASE_NUMBER` (first token) and `PHASE_NAME` (remaining tokens joined with hyphens, lowercase).
 
