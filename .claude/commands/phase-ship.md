@@ -4,14 +4,12 @@ argument-hint: "Phase number and short description e.g. '2 database-schema'"
 allowed-tools: Read, Write, Glob, Bash, mcp__github__create_pull_request, mcp__github__merge_pull_request, mcp__github__delete_branch
 ---
 
-Always read .claude/CLAUDE.md before starting.
+<!-- CONTEXT BUDGET: ~50K tokens max. Load only files listed below. -->
 
-User input: $ARGUMENTS
+You have .claude/CLAUDE.md context. Parse user input: $ARGUMENTS as phase_number and phase_slug.
 
-## Step 1 — Read project context
-Read .claude/CLAUDE.md and store:
-- PROJECT_NAME
-- Current phase being shipped
+## Step 1 — Validate phase
+Read `.claude/specs/phase{N}-{slug}.md` if it exists. If not, ask user to run `/phase-start {N}` first.
 
 ## Step 2 — Parse arguments
 From $ARGUMENTS extract:

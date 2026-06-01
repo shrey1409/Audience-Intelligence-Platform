@@ -4,7 +4,9 @@ argument-hint: (no arguments)
 allowed-tools: Read, Glob, Bash(git:*)
 ---
 
-Read `.claude/CLAUDE.md` to load full project context, especially the 9-table schema summary.
+<!-- CONTEXT BUDGET: ~50K tokens max. Load only files listed below. -->
+
+You have .claude/CLAUDE.md context. For feature matrix validation, read: `configs/base.yaml` ml.features.matrix section
 
 ## Step 1 — Discover all DDL files
 ```

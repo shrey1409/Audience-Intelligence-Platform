@@ -49,6 +49,9 @@ mlartifacts/
 .ipynb_checkpoints/
 *.ipynb_checkpoints
 
+# Archived specs (old large documents, keep locally for reference only)
+.claude/archive/
+
 # pytest
 .pytest_cache/
 .coverage

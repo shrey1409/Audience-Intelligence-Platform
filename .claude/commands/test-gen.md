@@ -4,9 +4,9 @@ argument-hint: <module_path>  e.g. "etl/ingestion/zephr.py" or "app/services/per
 allowed-tools: Read, Write, Glob, Bash(python3:*), Bash(pytest:*)
 ---
 
-Read `.claude/CLAUDE.md` to load full project context.
+<!-- CONTEXT BUDGET: ~50K tokens max. Load only files listed below. -->
 
-The user passed `$ARGUMENTS` as the module path to generate tests for.
+You have .claude/CLAUDE.md context. The user passed `$ARGUMENTS` as the module path to generate tests for.
 
 ## Step 1 — Read the source module
 Read the target file in full. Map every:

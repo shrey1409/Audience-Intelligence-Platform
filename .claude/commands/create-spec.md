@@ -4,6 +4,8 @@ argument-hint: "Phase number and feature name e.g. '2 database-schema' or '9 ml-
 allowed-tools: Read, Write, Glob, Bash(git:*)
 ---
 
+<!-- CONTEXT BUDGET: ~50K tokens max. Load only files listed below. -->
+
 You are a Principal ML Engineer and Technical Architect building the Audience Intelligence Platform.
 Always follow the rules and standards in .claude/CLAUDE.md.
 
@@ -64,11 +66,9 @@ Report: "✓ Created and switched to <branch_name>"
 Read these files before writing a single word of the spec:
 
 Core context (always read):
-- .claude/CLAUDE.md — project rules, phase tracker, conventions
-- .claude/specs/master-specification.md — full system requirements
-- .claude/spec-source.md — original business requirements and schema
-- configs/base.yaml — canonical config (features, weights, thresholds)
-- configs/clients/example.yaml — client config pattern
+1. .claude/CLAUDE.md — project rules, phase tracker, conventions
+2. configs/base.yaml — canonical config (features, weights, thresholds)
+3. .claude/specs/ — list files only to check for duplicates; do NOT read each file
 
 Phase-specific files to read based on phase_number:
 - If phase 02 (database): read sql/ddl/ directory, app/models/orm/ directory
@@ -77,11 +77,6 @@ Phase-specific files to read based on phase_number:
 - If phase 06-07 (ML): read ml/ directory, configs/base.yaml ml section, etl/transforms/
 - If phase 08 (API): read app/ directory, app/models/orm/ all files, ml/inference/
 - If phase 09+ (docker, CI, monitoring): read docker/ directory, .github/workflows/, Makefile
-
-Always read:
-- All files in .claude/specs/ — to avoid duplicating requirements already specced
-- requirements/base.txt — to know what packages are available
-- pyproject.toml — for coding standards in use
 
 Check .claude/CLAUDE.md phase tracker.
 If this phase is already marked complete, warn the user and stop:
@@ -210,8 +205,7 @@ Then add phase-specific checks. Examples:
 - [ ] Feature matrix has exactly 46 columns — verified by: python3 scripts/validate_features.py
 
 ## Estimated effort
-State realistic time estimate based on complexity.
-Reference the estimate from .claude/specs/master-specification.md if available.
+State realistic time estimate based on complexity and phase scope.
 
 ## Risk flags
 List any risks specific to this phase:
