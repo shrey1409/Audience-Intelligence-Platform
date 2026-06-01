@@ -1,8 +1,8 @@
 """Generator for ga4_events and ga4_identity_bridge staging tables.
 
-GA4 events are generated in chunks of batch_size users to avoid
-accumulating all ~15M rows in memory at once. Each chunk is yielded
-as a list of dicts for Core bulk insert (bypasses ORM overhead).
+GA4 events are generated in chunks of batch_size users but yielded in
+sub-batches of GA4_SUBBATCH_SIZE events (20K) regardless of user chunk
+boundaries. This prevents large memory spikes when users have many events.
 """
 
 from __future__ import annotations
@@ -26,6 +26,8 @@ _REFERENCE_DT = datetime(2026, 6, 1, 23, 59, 59)
 
 EVENT_NAMES: list[str] = ["page_view", "session_start", "scroll", "user_engagement"]
 EVENT_NAME_WEIGHTS: list[float] = [0.70, 0.15, 0.10, 0.05]
+
+GA4_SUBBATCH_SIZE: int = 20_000
 
 
 def _chunked(lst: list[Any], size: int) -> Generator[list[Any], None, None]:
@@ -74,10 +76,10 @@ def generate_ga4_events(
 
     first_last_seen: dict[str, tuple[datetime, datetime]] = {}
     total_events = 0
+    # Accumulator shared across all user chunks; flushed in 20K sub-batches.
+    batch: list[dict[str, Any]] = []
 
     for chunk in _chunked(ga4_user_ids, chunk_size):
-        batch: list[dict[str, Any]] = []
-
         for user_id in chunk:
             persona_name = user_persona_map[user_id]
             archetype = get_archetype(persona_name)
@@ -176,11 +178,25 @@ def generate_ga4_events(
             if user_first_dt is not None and user_last_dt is not None:
                 first_last_seen[user_pseudo_id] = (user_first_dt, user_last_dt)
 
+            # Flush completed 20K sub-batches immediately after each user,
+            # never accumulating more than GA4_SUBBATCH_SIZE rows in memory.
+            while len(batch) >= GA4_SUBBATCH_SIZE:
+                sub = batch[:GA4_SUBBATCH_SIZE]
+                batch = batch[GA4_SUBBATCH_SIZE:]
+                total_events += len(sub)
+                logger.debug(
+                    "ga4_events.subbatch.done",
+                    subbatch_events=len(sub),
+                    total_events=total_events,
+                )
+                yield sub, first_last_seen
+
+    # Yield any remaining events that did not fill a full sub-batch.
+    if batch:
         total_events += len(batch)
         logger.debug(
-            "ga4_events.chunk.done",
-            chunk_users=len(chunk),
-            chunk_events=len(batch),
+            "ga4_events.subbatch.done",
+            subbatch_events=len(batch),
             total_events=total_events,
         )
         yield batch, first_last_seen
