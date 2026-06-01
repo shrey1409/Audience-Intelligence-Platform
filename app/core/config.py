@@ -200,6 +200,43 @@ class FeatureEngineeringSettings(BaseModel):
     spark_master: str = "local[*]"
 
 
+class PersonaDistributionSettings(BaseModel):
+    low_engager: float = 0.506
+    casual_reader: float = 0.154
+    sports_focused: float = 0.101
+    celebrity_entertainment: float = 0.097
+    social_engager: float = 0.077
+    occasional_buyer: float = 0.029
+    subscription_focused: float = 0.028
+    loyalist: float = 0.011
+    high_value_shopper: float = 0.006
+
+
+class SourceCoverageSettings(BaseModel):
+    ga4: float = 0.95
+    braintree: float = 0.10
+    sailthru: float = 1.00
+    pushly: float = 0.35
+    openweb: float = 0.23
+    trackonomics: float = 0.16
+    transunion: float = 0.70
+
+
+class SyntheticDataSettings(BaseModel):
+    n_users: int = 100000
+    random_seed: int = 42
+    batch_size: int = 5000
+    ga4_events_per_user_mean: int = 150
+    ga4_events_per_user_std: int = 50
+    transunion_high_confidence_ratio: float = 0.85
+    persona_distribution: PersonaDistributionSettings = Field(
+        default_factory=PersonaDistributionSettings
+    )
+    source_coverage: SourceCoverageSettings = Field(
+        default_factory=SourceCoverageSettings
+    )
+
+
 # ---------------------------------------------------------------------------
 # Custom YAML settings source for pydantic-settings v2
 # ---------------------------------------------------------------------------
@@ -279,6 +316,7 @@ class Settings(BaseSettings):
     feature_engineering: FeatureEngineeringSettings = Field(
         default_factory=FeatureEngineeringSettings
     )
+    synthetic_data: SyntheticDataSettings = Field(default_factory=SyntheticDataSettings)
 
     @classmethod
     def settings_customise_sources(

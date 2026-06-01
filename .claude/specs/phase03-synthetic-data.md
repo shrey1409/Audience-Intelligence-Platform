@@ -43,13 +43,13 @@ No new tables or schema changes. All 10 tables are already defined by Phase 2:
 | Table | Rows generated |
 |-------|----------------|
 | `{schema}.zephr_users` | 100,000 |
-| `{schema}.ga4_events` | ~95,000 (one row per user for GA4 users; event-level records) |
-| `{schema}.ga4_identity_bridge` | ~95,000 (one row per GA4 user linking user_pseudo_id → user_id) |
+| `{schema}.ga4_events` | ~15,000,000 (~150 events per user × 95,000 GA4 users) |
+| `{schema}.ga4_identity_bridge` | ~95,000 (one row per GA4 user, not one per event — maps user_pseudo_id → user_id) |
 | `{schema}.braintree_subscriptions` | ~10,000 |
-| `{schema}.sailthru_newsletter` | ~65,000 |
+| `{schema}.sailthru_newsletter` | ~100,000 (~100% coverage) |
 | `{schema}.pushly_subscribers` | ~37,000 |
 | `{schema}.openweb_engagement` | ~26,000 |
-| `{schema}.trackonomics_clicks` | ~18,000 |
+| `{schema}.trackonomics_clicks` | ~500,000 (multiple clicks per commerce user, 16% user coverage) |
 | `{schema}.transunion_demographics` | ~70,000 |
 | `{schema}.feature_store` | 100,000 |
 
@@ -81,24 +81,26 @@ synthetic_data:
   random_seed: 42
   batch_size: 5000
   persona_distribution:
-    casual_reader: 0.32
-    low_engager: 0.22
-    sports_focused: 0.12
-    celebrity_entertainment: 0.10
-    social_engager: 0.07
-    subscription_focused: 0.06
-    loyalist: 0.04
-    occasional_buyer: 0.04
-    high_value_shopper: 0.03
+    low_engager: 0.506
+    casual_reader: 0.154
+    sports_focused: 0.101
+    celebrity_entertainment: 0.097
+    social_engager: 0.077
+    occasional_buyer: 0.029
+    subscription_focused: 0.028
+    loyalist: 0.011
+    high_value_shopper: 0.006
   source_coverage:
     ga4: 0.95
     braintree: 0.10
-    sailthru: 0.65
-    pushly: 0.37
-    openweb: 0.26
-    trackonomics: 0.18
+    sailthru: 1.00
+    pushly: 0.35
+    openweb: 0.23
+    trackonomics: 0.16
     transunion: 0.70
   transunion_high_confidence_ratio: 0.85
+  ga4_events_per_user_mean: 150
+  ga4_events_per_user_std: 50
 ```
 
 No other config files change.
@@ -111,7 +113,7 @@ No other config files change.
 | `scripts/seeds/persona_config.py` | Persona archetype definitions — feature mean/std per persona, coverage flags, per-persona source participation rates | `PersonaArchetype`, `PERSONA_ARCHETYPES`, `get_archetype` |
 | `scripts/seeds/generators/__init__.py` | Package marker | — |
 | `scripts/seeds/generators/zephr_users.py` | Generates 100,000 `ZephrUsers` ORM rows with persona-appropriate `account_age_days`, `email`, `has_subscription` base flag | `generate_zephr_users` |
-| `scripts/seeds/generators/ga4_events.py` | Generates `Ga4Events` and matching `Ga4IdentityBridge` rows for 95% of users; session metrics drawn from persona distributions | `generate_ga4_events`, `generate_ga4_identity_bridge` |
+| `scripts/seeds/generators/ga4_events.py` | Generates ~150 `Ga4Events` rows per user (across ~10–20 sessions distributed over 365 days) for 95% of users, plus one `Ga4IdentityBridge` row per GA4 user; session metrics drawn from persona distributions | `generate_ga4_events`, `generate_ga4_identity_bridge` |
 | `scripts/seeds/generators/braintree_subscriptions.py` | Generates `BraintreeSubscriptions` rows for ~10% of users; Loyalist and Subscription-Focused archetypes have 90%+ participation | `generate_braintree_subscriptions` |
 | `scripts/seeds/generators/sailthru_newsletter.py` | Generates `SailthruNewsletter` rows for 65% of users; newsletter flags drawn from persona affinity rules in `configs/base.yaml` | `generate_sailthru_newsletter` |
 | `scripts/seeds/generators/pushly_subscribers.py` | Generates `PushlySubscribers` rows for 37% of users | `generate_pushly_subscribers` |
@@ -124,6 +126,7 @@ No other config files change.
 | `scripts/validate_features.py` | Standalone validator that queries `feature_store` and asserts exactly 46 ML feature columns are non-null for at least 95% of rows; exits non-zero on failure | `validate_feature_coverage`, `main` |
 | `data/synthetic/.gitkeep` | Ensures `data/synthetic/` directory is tracked; optional CSV exports land here | — |
 | `tests/unit/test_synthetic_generators.py` | Unit tests for each generator function: correct row count, correct column types, no null user_ids, no hardcoded schema names, coverage rates within ±2% of config targets | `TestZephrGenerator`, `TestGa4Generator`, `TestFeatureStoreBuilder`, etc. |
+| `tests/integration/test_synthetic_nulls.py` | Integration test verifying no NULL user_ids in any staging table after full seed run | `test_no_null_user_ids_zephr`, `test_no_null_user_ids_braintree`, `test_no_null_user_ids_all_tables` |
 
 ## Files to modify
 
@@ -181,8 +184,8 @@ to `requirements/base.txt`.
 - [ ] No hardcoded values — verified by: `grep -rn "100000\|0\.95\|0\.65\|0\.37\|0\.26\|0\.18\|0\.70\|public\." scripts/seeds/ scripts/validate_features.py` (must return zero matches in implementation code)
 - [ ] `configs/base.yaml` validates — verified by: `python3 -c "import yaml; yaml.safe_load(open('configs/base.yaml'))"`
 - [ ] Seed script runs without error — verified by: `python3 scripts/seeds/generate_synthetic_data.py --truncate` (exits 0, no exceptions)
-- [ ] `zephr_users` has exactly 100,000 rows — verified by: `docker exec -it aip_postgres psql -U aip_user -d aip_db -c "SELECT COUNT(*) FROM public.zephr_users;"`
-- [ ] `feature_store` has exactly 100,000 rows — verified by: `docker exec -it aip_postgres psql -U aip_user -d aip_db -c "SELECT COUNT(*) FROM public.feature_store;"`
+- [ ] `zephr_users` has exactly 100,000 rows — verified by: `docker exec -it aip_postgres psql -U aip_user -d audience_intelligence -c "SELECT COUNT(*) FROM public.zephr_users;"`
+- [ ] `feature_store` has exactly 100,000 rows — verified by: `docker exec -it aip_postgres psql -U aip_user -d audience_intelligence -c "SELECT COUNT(*) FROM public.feature_store;"`
 - [ ] Feature matrix has exactly 46 non-null columns for ≥ 95% of rows — verified by: `python3 scripts/validate_features.py`
 - [ ] Coverage rates within ±2% of config targets — verified by: `pytest tests/unit/test_synthetic_generators.py::TestCoverageRates -v`
 - [ ] Reproducibility check: two consecutive runs produce identical `feature_store` rows — verified by: `python3 scripts/seeds/generate_synthetic_data.py --truncate && python3 -c "import hashlib, pandas as pd; df=pd.read_sql(...); print(hashlib.md5(df.to_csv().encode()).hexdigest())"` (hashes match)
