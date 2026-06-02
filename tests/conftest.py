@@ -30,3 +30,4 @@ def test_schema(test_db_url: str) -> Generator[str, None, None]:
         conn.execute(text(f"DROP SCHEMA IF EXISTS {schema} CASCADE"))
         conn.commit()
     engine.dispose()
+    os.environ.pop("DATABASE__SCHEMA", None)

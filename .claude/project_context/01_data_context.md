@@ -2,15 +2,20 @@
 
 ## Database Tables (10 total)
 
-### Source Staging Tables (8)
-- **ga4_events** (user_pseudo_id) — 64% coverage, identity via ga4_identity_bridge
-- **ga4_identity_bridge** (user_pseudo_id → user_id) — 100% coverage, login events only
-- **transunion_demographics** (email) — 70% coverage (match_confidence ≥ 0.70)
-- **first_party_attributes** (email) — 95% coverage, customer CRM data
-- **behavioral_segments** (email) — 80% coverage, RFM + engagement signals
-- **lookalike_model_scores** (email) — 60% coverage, seed audience expansion
-- **survey_responses** (email) — 45% coverage, opt-in survey data
-- **device_graph** (device_id) — 75% coverage, device-to-user resolution
+### Source Staging Tables (8) — actual tables as of Phase 3
+
+**Event-level tables (multiple rows per user — aggregated in feature_store_builder via GROUP BY user_id):**
+- **ga4_events** — 95% user coverage, ~148 events/user, 14.1M rows. PK=engagement_id. Aggregated to sessions, pageviews, bounce_rate, page ratios.
+- **openweb_engagement** — 23% user coverage, ~13 events/user per type, 296K rows. PK=engagement_id. ⚠️ NOT one row per user. Event types: comment/like/share. Aggregated to total_comments, total_likes_given, total_shares. social_engager persona has Poisson(40) events; others Poisson(5).
+- **trackonomics_clicks** — 16% user coverage, multiple click rows per user, 104K rows. PK=click_id. Aggregated to total_transactions, total_revenue_generated, conversion_rate.
+
+**One-row-per-user tables:**
+- **ga4_identity_bridge** — 95% coverage, 1 row per GA4 user. Maps user_pseudo_id → user_id via login events.
+- **zephr_users** — 100% coverage, 100K rows. Identity hub. UNIQUE(user_id).
+- **braintree_subscriptions** — 10% coverage, 10K rows. 1 active/cancelled/past_due record per subscriber.
+- **sailthru_newsletter** — 100% coverage, 100K rows. 1 row per user with 10 newsletter flag columns.
+- **pushly_subscribers** — 35% coverage, 35K rows. 1 row per opted-in user.
+- **transunion_demographics** — 70% coverage, 70K rows. 85% have match_confidence ≥ 0.70.
 
 ### Core Tables (2)
 - **user_profiles** (user_id PK) — 100% coverage, identity hub, 1M+ rows

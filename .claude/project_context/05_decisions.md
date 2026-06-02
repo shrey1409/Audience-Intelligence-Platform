@@ -19,7 +19,10 @@
 - **[P2] Decision:** CASCADE deletes on user_profiles only (not persona_assignments). **Reason:** Prevent accidental cascade orphaning; explicit deletion via service layer. **Watch-out:** Order of deletion matters in tests; delete user_profiles last.
 
 ## Phase 3: Synthetic Data Generation
-- **[P3] Decision:** Faker library for deterministic data generation. **Reason:** Reproducible test data; seeded RNG for consistency. **Watch-out:** None yet (phase in progress).
+- **[P3] Decision:** Faker library for deterministic data generation; `Faker.seed(42)` at pipeline start. **Reason:** Reproducible test data across machines. **Watch-out:** Must use `faker.uuid4()` not `uuid.uuid4()` for any ID that seeds downstream GROUP BY keys.
+- **[P3] Decision:** GA4 generator yields 20K-event sub-batches (not one batch per user chunk). **Reason:** Full chunk accumulation caused OOM with 15M events. **Watch-out:** Sub-batch boundary can split a user's events across two writes — verify COUNT(DISTINCT session_id) still correct.
+- **[P3] Decision:** feature_store `created_at`/`updated_at` set explicitly to `REFERENCE_DT = datetime(2026,6,1)`. **Reason:** ORM `server_default=func.now()` is wall-clock and breaks reproducibility. **Watch-out:** Phase 4 ETL real data should write actual ingestion timestamps.
+- **[P3] Decision:** Test schema env var cleanup moved to `test_schema` fixture teardown in `tests/conftest.py`. **Reason:** `test_migrations.py` sets `os.environ["DATABASE__SCHEMA"]` directly (not monkeypatch) — it leaked into unit tests. **Watch-out:** Any new integration test that sets env vars directly must clean them up.
 
 ## Cross-Phase Patterns
 - **Identity Resolution:** GA4 pseudo_id → user_id via ga4_identity_bridge (login events). Email is secondary fallback.

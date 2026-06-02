@@ -8,7 +8,7 @@ all derived features, and writes FeatureStore rows in batches.
 from __future__ import annotations
 
 import uuid
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 
 import numpy as np
@@ -23,6 +23,7 @@ from scripts.seeds.db_writer import DbWriter
 logger = structlog.get_logger(__name__)
 
 REFERENCE_DATE: date = date(2026, 6, 1)
+REFERENCE_DT: datetime = datetime(2026, 6, 1, 0, 0, 0)
 
 _AGE_SCORE_MAP: dict[str, int] = {
     "age_18_24": 1,
@@ -465,6 +466,8 @@ def build_feature_store(
             uid = uuid.UUID(str(row["user_id"]))
             obj = FeatureStore(
                 user_id=uid,
+                created_at=REFERENCE_DT,
+                updated_at=REFERENCE_DT,
                 is_new_user=bool(row.get("is_new_user", False)),
                 # Web behaviour
                 total_sessions=int(row.get("total_sessions", 0)),

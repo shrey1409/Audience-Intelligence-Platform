@@ -71,7 +71,7 @@ def generate_zephr_users(
     for i in range(n):
         persona_name = str(persona_arr[i])
         archetype = get_archetype(persona_name)
-        uid = uuid.uuid4()
+        uid = uuid.UUID(faker.uuid4())
 
         # account_age_days drawn from persona distribution, clipped to [1, 3650].
         age_days = int(
