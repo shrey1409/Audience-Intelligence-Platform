@@ -1,40 +1,46 @@
 # Current Status — Audience Intelligence Platform
 
-**Last updated:** 2026-06-01
-**Current phase:** 3 — Synthetic Data Generation
+**Last updated:** 2026-06-02
+**Current phase:** 3 — Synthetic Data (COMPLETE, PR pending merge)
 **Current branch:** feature/phase03-synthetic-data
-**Status:** Spec ready, implementation pending
+**Next phase:** 4 — ETL Ingestion
 
 ## Progress
 - ✅ Phase 1: Environment Setup (merged)
-- ✅ Phase 2: Database Schema (merged, PR #5) — 10 tables, 64-col feature_store, 46 ML features
-- 🔄 Phase 3: Synthetic Data (in progress) — generators + seeds needed
+- ✅ Phase 2: Database Schema (merged, PR #5)
+- 🔄 Phase 3: Synthetic Data — code complete, PR open, pending merge
 - ⏳ Phases 4-10: Pending
 
-## Last Completed
-Phase 2 database schema with Alembic migrations, ORM models, and integration tests (all passing).
+## Phase 3 Final State
+- **Commit:** 89d8eea — all fixes applied, all tests passing
+- **Tests:** 79/79 passed (unit + integration)
+- **Reproducibility:** MD5 = `1129b811d9945a7bd7cb407b4734baeb` (verified across 5 seed runs)
+- **Feature validator:** 46/46 features at 100% non-null rate
 
-## Next Immediate Action
-Implement synthetic data generators for Phase 3: GA4 events, identity bridge, transunion demographics, first-party attributes, behavioral segments, lookalike scores, survey responses, device graphs.
+## Before Moving to Phase 4
+1. ✅ Merge Phase 3 PR on GitHub
+2. ✅ `git checkout main && git pull`
+3. ✅ Run `/phase-start 4 etl-ingestion` to create branch + spec
 
-## Phase 3 Watch-Outs
-1. **GA4 identity resolution:** pseudo_id → user_id mapping via login events (ga4_identity_bridge)
-2. **Coverage percentages:** Vary by source (GA4: 64%, Transunion: 70%, First-party: 95%)
-3. **Feature completeness:** All 46 features must be present in seeded feature_store
-4. **Deterministic seeding:** Use Faker with fixed seed for reproducibility
-5. **Insertion order:** user_profiles first, feature_store last (to avoid FK constraint failures)
+## Phase 4 Watch-Outs (carry-forward from Phase 3)
+1. `persona_label` in feature_store is NULL — ETL must not touch it (Phase 6 writes it)
+2. `bounce_rate` = 0.000 across all users in synthetic data — verify ETL real data handles single-event sessions correctly
+3. `openweb_engagement` has 296K rows, higher than 23% spec coverage — investigate in ETL
+4. `importlib.reload()` doesn't work for schema override in tests → use subprocess isolation
+5. `os.environ["DATABASE__SCHEMA"]` leaks if set directly (not via monkeypatch) — fixed in conftest but watch for new tests
 
-## Known Issues from Phase 2
-- importlib.reload() doesn't work for schema override in tests → use subprocess isolation
-- Pydantic-settings constructor kwargs override env vars → use env fixtures instead
-- Docker volume persistence → use `docker compose down -v` for clean slate
-- ON CONFLICT upserts require UNIQUE constraints (Alembic auto-detect may miss composite keys)
+## Useful Commands
+```bash
+# Verify seed is healthy
+PYTHONPATH=. python3 scripts/validate_features.py
 
-## Context Optimization Status
-- ✅ Created .claude/project_context/ (6 files: 00_global → 06_session_recovery)
-- ✅ Rewritten CURRENT_STATUS.md (40 lines, down from 203)
-- ⏳ Command files need updating (reference new project_context structure)
+# Full test suite
+pytest tests/ -v
 
-**Full history:** See .claude/project_journal/
+# Row counts
+docker exec aip_postgres psql -U aip_user -d audience_intelligence \
+  -c "SELECT relname, n_live_tup FROM pg_stat_user_tables WHERE schemaname='public' ORDER BY n_live_tup DESC;"
+```
+
+**Full journal:** See .claude/project_journal/phase03-synthetic-data.md
 **Decisions log:** See .claude/project_context/05_decisions.md
-**Recovery prompts:** See .claude/project_context/06_session_recovery.md
