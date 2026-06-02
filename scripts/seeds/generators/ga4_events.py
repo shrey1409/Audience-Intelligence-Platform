@@ -95,40 +95,97 @@ def generate_ga4_events(
             # n_events drawn from Normal, clipped to [5, 500].
             n_events = int(np.clip(rng.normal(mean_events, std_events), 5, 500))
 
-            # Sessions: 1 event per ~12 events on average (10–20 sessions).
+            # Sessions: 1 event per ~12 events on average.
             n_sessions = max(1, int(rng.normal(n_events / 12, 2)))
-            session_sizes = rng.multinomial(n_events, [1.0 / n_sessions] * n_sessions)
+
+            # Bounce sessions: drawn from persona's bounce_rate distribution.
+            # Each bounce session has exactly 1 event with engagement < 10s.
+            target_bounce_rate = float(
+                np.clip(
+                    rng.normal(archetype.bounce_rate_mu, archetype.bounce_rate_sigma),
+                    0.0,
+                    1.0,
+                )
+            )
+            n_bounce = min(int(round(n_sessions * target_bounce_rate)), n_sessions)
+            n_normal = n_sessions - n_bounce
+
+            # Distribute remaining events across non-bounce sessions.
+            normal_events = max(n_normal, n_events - n_bounce)
+            normal_sizes: list[int] = (
+                rng.multinomial(normal_events, [1.0 / n_normal] * n_normal).tolist()
+                if n_normal > 0
+                else []
+            )
 
             # Event dates spread over last 365 days, weighted by recency.
             days_ago_options = np.arange(0, 365)
-            # Persona's days_since_last_visit controls recency bias.
             recency_mu = archetype.days_since_last_visit_mu
             weights_raw = np.exp(-days_ago_options / max(recency_mu * 2, 30))
             day_weights = weights_raw / weights_raw.sum()
 
-            # Draw one base date per session.
-            session_base_days = rng.choice(
-                days_ago_options, size=n_sessions, p=day_weights
-            )
+            # Draw one base date per session (bounce first, then normal).
+            all_base_days = rng.choice(days_ago_options, size=n_sessions, p=day_weights)
+            bounce_base_days = all_base_days[:n_bounce]
+            normal_base_days = all_base_days[n_bounce:]
 
             user_first_dt: datetime | None = None
             user_last_dt: datetime | None = None
 
-            for s_idx, (s_size, base_days) in enumerate(
-                zip(session_sizes, session_base_days)
-            ):
+            # --- Bounce sessions (1 event each, engagement < 10s, is_bounce=True) ---
+            for base_days in bounce_base_days:
+                session_id = uuid.uuid4().hex[:16]
+                event_date = REFERENCE_DATE - timedelta(days=int(base_days))
+                hour = int(rng.integers(0, 24))
+                minute = int(rng.integers(0, 60))
+                second = int(rng.integers(0, 60))
+                event_ts = datetime(
+                    event_date.year,
+                    event_date.month,
+                    event_date.day,
+                    hour,
+                    minute,
+                    second,
+                )
+                device = str(rng.choice(device_keys, p=device_probs))
+                event_name = str(rng.choice(EVENT_NAMES, p=EVENT_NAME_WEIGHTS))
+                page_cat = str(rng.choice(page_cat_keys, p=page_cat_probs))
+                # Bounce: clearly under the 10s threshold.
+                engagement_ms = int(rng.integers(500, 9000))
+
+                batch.append(
+                    {
+                        "event_id": uuid.uuid4(),
+                        "user_id": user_id,
+                        "user_pseudo_id": user_pseudo_id,
+                        "event_name": event_name,
+                        "event_date": event_date,
+                        "event_timestamp": event_ts,
+                        "session_id": session_id,
+                        "device_category": device,
+                        "page_category": page_cat,
+                        "page_path": f"/{page_cat}/article",
+                        "engagement_time_msec": engagement_ms,
+                        "is_bounce": True,
+                    }
+                )
+                if user_first_dt is None or event_ts < user_first_dt:
+                    user_first_dt = event_ts
+                if user_last_dt is None or event_ts > user_last_dt:
+                    user_last_dt = event_ts
+
+            # --- Normal sessions (multi-event, is_bounce=False) ---
+            for s_size, base_days in zip(normal_sizes, normal_base_days):
                 if s_size == 0:
                     continue
                 session_id = uuid.uuid4().hex[:16]
                 device = str(rng.choice(device_keys, p=device_probs))
                 event_date = REFERENCE_DATE - timedelta(days=int(base_days))
-                is_single_event_session = s_size == 1
 
                 for e_idx in range(s_size):
                     event_id = uuid.uuid4()
                     event_name = str(rng.choice(EVENT_NAMES, p=EVENT_NAME_WEIGHTS))
                     page_cat = str(rng.choice(page_cat_keys, p=page_cat_probs))
-                    # Timestamp: random hour/minute within the event date.
                     hour = int(rng.integers(0, 24))
                     minute = int(rng.integers(0, 60))
                     second = int(rng.integers(0, 60))
@@ -140,7 +197,6 @@ def generate_ga4_events(
                         minute,
                         second,
                     )
-                    # engagement_time_msec: draw in seconds, convert to ms.
                     dur_s = max(
                         0,
                         rng.normal(
@@ -149,9 +205,6 @@ def generate_ga4_events(
                         ),
                     )
                     engagement_ms = int(dur_s * 1000)
-
-                    # is_bounce: True only on single-event sessions.
-                    is_bounce = is_single_event_session and e_idx == 0
 
                     batch.append(
                         {
@@ -166,10 +219,9 @@ def generate_ga4_events(
                             "page_category": page_cat,
                             "page_path": f"/{page_cat}/article",
                             "engagement_time_msec": engagement_ms,
-                            "is_bounce": is_bounce,
+                            "is_bounce": False,
                         }
                     )
-
                     if user_first_dt is None or event_ts < user_first_dt:
                         user_first_dt = event_ts
                     if user_last_dt is None or event_ts > user_last_dt:
