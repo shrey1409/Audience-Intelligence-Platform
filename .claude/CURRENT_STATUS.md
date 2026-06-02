@@ -25,7 +25,7 @@
 ## Phase 4 Watch-Outs (carry-forward from Phase 3)
 1. `persona_label` in feature_store is NULL — ETL must not touch it (Phase 6 writes it)
 2. `bounce_rate` = 0.000 across all users in synthetic data — verify ETL real data handles single-event sessions correctly
-3. `openweb_engagement` has 296K rows, higher than 23% spec coverage — investigate in ETL
+3. `openweb_engagement` has 296K rows — **this is correct**: event-level table (~13 events/user), not one row per user. feature_store_builder aggregates with GROUP BY user_id. Spec row estimate was wrong. in ETL
 4. `importlib.reload()` doesn't work for schema override in tests → use subprocess isolation
 5. `os.environ["DATABASE__SCHEMA"]` leaks if set directly (not via monkeypatch) — fixed in conftest but watch for new tests
 
